@@ -37,7 +37,6 @@ MainMenu() {
 		255)
 			exit;;
 		0)
-			echo MainMenu > /tmp/iptui-m
 			case $(cat /tmp/iptui) in
 				WiFi)
 					WPAScan;;
@@ -51,17 +50,22 @@ MainMenu() {
 PrevMenu() {
 	case $? in
 		1)
-			$(cat /tmp/iptui-m);;
+			$(cat /tmp/iptui-m)
+			exit;;
 		255)
-			$(cat /tmp/iptui-m);;
+			$(cat /tmp/iptui-m)
+			exit;;
 		123)
-			$(cat /tmp/iptui-m);;
+			$(cat /tmp/iptui-m)
+			exit;;
 		124)
-			$(cat /tmp/iptui-m);;
+			$(cat /tmp/iptui-m)
+			exit;;
 	esac
 }
 
 Options() {
+	echo MainMenu > /tmp/iptui-m
 	dialog --title "iptui - $VERSION" --checklist "Options" 13 60 4\
 		"HIDEPASS" "Hides passwords during entry" $HIDEPASS 2> /tmp/iptui
 	PrevMenu
@@ -71,12 +75,12 @@ Options() {
 	MainMenu
 }
 WPAScan() {
+	echo MainMenu > /tmp/iptui-m
 	dialog --title "iptui - $VERSION" --infobox "Scanning WiFi Networks" 4 40
 	wpa_cli scan &> /dev/null
 	while :
 	do
 		if [ "$(wpa_cli scan | grep OK)" = "OK" ]; then
-		#	cat ./out3 | \
 			wpa_cli scan_results | \
 			cut -f 3- | \
 			sort | \
@@ -85,6 +89,7 @@ WPAScan() {
 			sed '/^"" ""$/d' | \
 			xargs dialog --title "iptui - $VERSION" --menu "Select a WiFi Network" 60 60 4 2> /tmp/iptui
 			PrevMenu
+			echo 
 			export SSID="$(cat /tmp/iptui | cut -d ' ' -f 3-)"
 			case $(cat /tmp/iptui | cut -d ' ' -f 2) in
 				PASS)
@@ -93,8 +98,11 @@ WPAScan() {
 					else
 						export InputType="--inputbox"
 					fi
+			
+					echo WPAScan > /tmp/iptui-m
 					dialog $InputType "Please enter wifi password" 8 40 2> /tmp/iptui
-					wpa_passphrase "$SSID" "$(cat /tmp/iptui)" >> $WPAConf	
+					PrevMenu
+					wpa_passphrase "$SSID" "$(cat /tmp/iptui)" >> $WPAConf
 					wpa_cli reconfigure
 					ip link set $WPAInterface down
 					ip link set $WPAInterface up;;

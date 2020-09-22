@@ -1,0 +1,54 @@
+#!/bin/sh
+
+unset -- IFS PID XORG XINIT
+
+error () { printf "%s\n" "${0##*/}: error: $1" >&2; }
+
+installed () {
+	command -v X && XORG="X"
+	command -v Xorg && XORG="Xorg"
+	[ "$XORG" ]
+}
+
+cleanup () {
+	kill -15 $PID
+	wait
+	stty sane
+}
+
+launchx () {
+	trap "" 10
+	exec $XORG ":$TTY" "vt$TTY"
+}
+
+if [ "$DISPLAY" ]; then
+	error "Xorg is already running"
+	exit 1
+elif ! installed >/dev/null; then
+	error "Xorg not found"
+	exit 1
+fi
+
+TTY="$(tty)"
+TTY="${TTY#/dev/tty}"
+export DISPLAY=":$TTY"
+
+trap "cleanup" 0
+
+if [ $# -eq 0 ]; then
+	LOCAL="$HOME/.xinitrc"
+	GLOBAL="/etc/X11/xinit/xinitrc"
+	[ -f "$GLOBAL" ] && XINIT="$GLOBAL"
+	[ -f "$LOCAL" ] && XINIT="$LOCAL"
+	if [ ! "$XINIT" ]; then
+		error "No xinitrc was found"
+		exit 1
+	fi
+	trap "$XINIT" 10
+else
+	trap "$*" 10
+fi
+
+launchx &
+PID=$!
+wait

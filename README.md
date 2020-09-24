@@ -15,3 +15,7 @@ for your setup.
 * coreutils/busybox
 * sed/busybox
 * awk/gawk/busybox
+* xorg
+* [slock](https://github.com/allbombson/slock)
+* sxiv
+* maim

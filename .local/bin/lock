@@ -1,0 +1,7 @@
+#!/bin/sh
+echo "Locking up..."
+maim -u /tmp/lock.png
+convert /tmp/lock.png -blur 0x8 -gravity Center -fill \#00FF00 -pointsize 30 -annotate 0 "$(date +\\"Locked %m/%d/%y %H:%M:%S\\")" /tmp/lock.png
+sxiv -f -b /tmp/lock.png &
+slock
+kill $!

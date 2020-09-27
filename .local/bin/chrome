@@ -1,0 +1,2 @@
+#!/bin/sh
+su chrome -c /home/chrome/chrome-wrapper

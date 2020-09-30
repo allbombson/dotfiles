@@ -1,0 +1,40 @@
+#!/bin/sh
+export PANEL_FIFO=/tmp/panel-fifo
+
+trap "kill \$(jobs -p); exit" EXIT SIGINT SIGTERM
+[ -e "$PANEL_FIFO" ] && rm "$PANEL_FIFO"
+mkfifo "$PANEL_FIFO"
+
+# "Modules" can be defined here to keep everything in one place
+battery() {
+while : ; do
+	cat /sys/class/power_supply/BAT0/capacity
+	sleep 5
+done
+}
+
+date() {
+while : ; do
+	# Seg faults if I don't do /usr/bin/date
+	/usr/bin/date +"%H:%M:%S"
+	sleep 0.9
+done
+}
+
+bar() {
+while read -r line ; do
+	case $line in
+		battery:*)
+			battery="$(echo $line% | sed 's/^battery: //g')";;
+		date:*)
+			date="$(echo $line | sed 's/^date: //g')";;
+	esac
+	echo "$i3 | $battery | $date"
+done
+}
+
+# List of "modules" to write to the status bar
+battery | awk '{print"battery:",$0}' > "$PANEL_FIFO" &
+date | awk '{print"date:",$0}' > "$PANEL_FIFO" &
+bar < "$PANEL_FIFO" | lemonbar
+

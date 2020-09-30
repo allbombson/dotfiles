@@ -8,7 +8,8 @@ mkfifo "$PANEL_FIFO"
 # "Modules" can be defined here to keep everything in one place
 battery() {
 while : ; do
-	cat /sys/class/power_supply/BAT0/capacity
+	read cap < /sys/class/power_supply/BAT0/capacity
+	echo $cap
 	sleep 5
 done
 }
@@ -25,11 +26,11 @@ bar() {
 while read -r line ; do
 	case $line in
 		battery:*)
-			battery="$(echo $line% | sed 's/^battery: //g')";;
+			battery="${line#battery: }%";;
 		date:*)
-			date="$(echo $line | sed 's/^date: //g')";;
+			date="${line#date: }";;
 	esac
-	echo "$i3 | $battery | $date"
+	echo "$battery | $date"
 done
 }
 

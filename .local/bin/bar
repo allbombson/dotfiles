@@ -1,41 +1,70 @@
 #!/bin/sh
 export PANEL_FIFO=/tmp/panel-fifo
+export PANEL_NAME=bspwm_lemonbar
 
-trap "kill \$(jobs -p); exit" EXIT SIGINT SIGTERM
+trap "trap - TERM; kill 0" INT TERM QUIT EXIT
 [ -e "$PANEL_FIFO" ] && rm "$PANEL_FIFO"
 mkfifo "$PANEL_FIFO"
 
 # "Modules" can be defined here to keep everything in one place
 battery() {
-while : ; do
+while true ; do
 	read cap < /sys/class/power_supply/BAT0/capacity
-	echo $cap
+	echo "battery: $cap"
 	sleep 5
 done
 }
 
-date() {
-while : ; do
-	# Seg faults if I don't do /usr/bin/date
-	/usr/bin/date +"%H:%M:%S"
+time() {
+while true ; do
+
+	date +"time: %H:%M:%S"
 	sleep 0.9
 done
 }
 
-bar() {
+display() {
 while read -r line ; do
 	case $line in
+		bspwm:*)
+			tmp="${line#bspwm: }"
+			IFS=':'
+			set -- ${tmp#?}
+			unset -- tmp2
+			shift
+			while [ $# -gt 0 ]; do
+				case $1 in
+					F*)
+						tmp2="$tmp2%{B#0000AA} ${1#F} %{B-}";;
+					o*)
+						tmp2="$tmp2%{B#555555} ${1#o} %{B-}";;
+					O*)
+						tmp2="$tmp2%{B#0000AA} ${1#O} %{B-}";;
+					u*)
+						tmp2="$tmp2%{B#AA0000} ${1#u} %{B-}";;
+					U*)
+						tmp2="$tmp2%{B#0000AA} ${1#U} %{B-}";;
+					[mM]*)
+						tmp2="$tmp2%{S+}";;
+				esac 
+			shift
+			done
+			bspwm="$tmp2";;
 		battery:*)
 			battery="${line#battery: }%";;
-		date:*)
-			date="${line#date: }";;
+		time:*)
+			date="${line#time: }";;
 	esac
-	echo "$battery | $date"
+	echo "$bspwm %{Sf}$(awk "{print \"%{r}$battery | $date%{l}%{S+}\"}" /tmp/screens | sed ':a;N;$!ba;s/\n//g')"
 done
 }
 
 # List of "modules" to write to the status bar
-battery | awk '{print"battery:",$0}' > "$PANEL_FIFO" &
-date | awk '{print"date:",$0}' > "$PANEL_FIFO" &
-bar < "$PANEL_FIFO" | lemonbar
-
+bspc subscribe | awk '{print"bspwm:",$0}' > "$PANEL_FIFO" & 
+battery > "$PANEL_FIFO" &
+time > "$PANEL_FIFO" &
+display < "$PANEL_FIFO" | lemonbar -n "$PANEL_NAME" &
+xdo id -m -a "$PANEL_NAME" | while read -r WID;do
+	xdo above -t "$(xdo id -N Bspwm -n root | sort | head -n 1)" "$WID"
+done
+wait
